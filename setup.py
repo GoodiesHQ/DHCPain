@@ -20,7 +20,8 @@ setup(  name="dhcpain",
             ],
         },
         classifiers = [
-            "License :: OSI Approved :: GPL3 License",
-            "Topic :: Security :: Networking",
+            "License :: OSI Approved :: GNU Affero General Public License v3",
+            "Topic :: Security",
+            "Topic :: System :: Networking",
         ],
 )
