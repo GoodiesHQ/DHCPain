@@ -6,6 +6,15 @@ DHCPain is a simple, no-nonsense DHCP attack toolkit built in Scapy for Python3.
 Some attack utilities either do not work with the current version of Scapy (such as [DHCPig](https://github.com/kamorin/DHCPig)), or only floods the network with DHCP Discover packets without properly responding to DHCP Offer messages. This tool is simple and fixes both of these issues.
 
 
+### Setup (Linux)
+
+	git clone https://github.com/GoodiesHQ/DHCPain
+	python3 -m virtualenv DHCPain
+	cd DHCPain
+	. bin/activate
+	pip install -r requirements.txt
+	./dhcpain.py
+
 ### Usage
 
 	usage: dhcpain.py 	--iface IFACE
