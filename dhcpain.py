@@ -12,6 +12,9 @@ import os
 import string
 import time
 
+__version__ = "1.0.0"
+__author__ = "Austin Archer"
+
 init()
 
 class C:
@@ -27,10 +30,10 @@ class C:
     YLW = Fore.YELLOW
 
     PFX = RST + BRT + CYN + "[DHCPain]" + RST
-    MSG_DSC = RST + BRT + MGT + "DHCP Discover" + RST
-    MSG_OFF = RST + BRT + YLW + "DHCP Offer" + RST
-    MSG_REQ = RST + BRT + MGT + "DHCP Request" + RST
-    MSG_ACK = RST + BRT + GRN + "DHCP Acknowledge" + RST
+    MSG_DSC = RST + BRT + MGT + "DHCP Discover " + RST
+    MSG_OFF = RST + BRT + YLW + "DHCP Offer    " + RST
+    MSG_REQ = RST + BRT + MGT + "DHCP Request  " + RST
+    MSG_ACK = RST + BRT + GRN + "DHCP Ack      " + RST
 
 
 def trycast(new_type, value, default=None):
@@ -134,7 +137,7 @@ class Handler(Thread):
             if not me:
                 l, r = r, l
 
-            print(C.PFX, "{} {:<35}".format(dmsg, tmsg), l, arrow, r, *extra)
+            print(C.PFX, "{} {}".format(dmsg, tmsg), l, arrow, r, *extra)
 
 
 class Requester(Thread):
