@@ -96,7 +96,7 @@ class Handler(Thread):
             elif n == "offer":
                 tmsg = C.MSG_OFF
                 extra.append("Server " + pkt[BOOTP].siaddr)
-                rq.put(pkt)  # place offer packet on Request Queue
+                self._rq.put(pkt)  # place offer packet on Request Queue
             elif n == "request":
                 tmsg = C.MSG_REQ
             elif n == "ack":
@@ -188,7 +188,7 @@ def main():
     ap = ArgumentParser()
     ap.add_argument("--iface", "-i", type=str, required=True, help="Interface name")
     ap.add_argument("--threads", "-t", type=int, default=1, help="Number of concurrent threads")
-    ap.add_argument("--delay", "-d", type=float, default=1.0, help="Number of concurrent threads")
+    ap.add_argument("--delay", "-d", type=float, default=1.0, help="Delay between messages per thread")
     args = ap.parse_args()
 
     rq = Queue()
