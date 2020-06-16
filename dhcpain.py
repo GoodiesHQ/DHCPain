@@ -93,7 +93,6 @@ class Handler(Thread):
     """
     def __init__(self, iface, rq):
         super().__init__()
-        assert isinstance(rq, Queue), "Please provide a Queue for `rq`"
         self._rq = rq
         self.daemon = True
         self._iface = iface
@@ -121,7 +120,8 @@ class Handler(Thread):
             elif n == "offer":
                 tmsg = C.MSG_OFF
                 extra.append("Server " + pkt[BOOTP].siaddr)
-                self._rq.put(pkt)  # place offer packet on Request Queue
+                if self._rq is not None:
+                    self._rq.put(pkt)  # place offer packet on Request Queue
             elif n == "request":
                 tmsg = C.MSG_REQ
             elif n == "ack":
@@ -212,10 +212,12 @@ class Discover(Thread):
 def main():
     ap = ArgumentParser()
     g = ap.add_mutually_exclusive_group(required=True)
-    g.add_argument("--iface", "-i", type=get_iface, help="Interface name")
-    g.add_argument("--list", "-l", action="store_true", help="Interface name")
+    g.add_argument("--iface", "-i", type=get_iface, help="Interface name/index")
+    g.add_argument("--list", "-l", action="store_true", help="List available interfaces")
+
     ap.add_argument("--threads", "-t", type=int, default=1, help="Number of concurrent threads")
     ap.add_argument("--delay", "-d", type=float, default=1.0, help="Delay between messages per thread")
+    ap.add_argument("--search", "-s", action="store_true", help="Search ONLY (do not exhaust scopes)")
     args = ap.parse_args()
 
     if args.list:
@@ -233,14 +235,23 @@ def main():
                     for ifaddr in ifaddrs[idx]:
                         if 0 < len(ifaddr.get("netmask", "")) < 16:
                             print(fmt.format(iface, ifaddr.get("addr")))
-                            continue
         return
 
-    rq = Queue()
+    # Create a request queue for handler packets
+    rq = None if args.search else Queue()
+
+    # Create a packet handler thread for the desired interface and a queue for requests
     Handler(args.iface, rq).start()
-    Requester(args.iface, rq).start()
+
+    # Skip handling DHCP Offers for search-only
+    if not args.search:
+        # Create a thread that responds to Offers with Requests
+        Requester(args.iface, rq).start()
+
+    # Create discover threads (somewhat unnecessary, just decrease the delay)
     for _ in range(args.threads):
         Discover(args.iface, delay=args.delay).start()
+
     while True:
         get_stop_event().wait(0.1)
 
