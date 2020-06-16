@@ -7,6 +7,7 @@ from scapy import volatile
 from scapy.all import *
 from threading import Thread, Event
 import binascii
+import netifaces
 import os
 import string
 import time
@@ -219,7 +220,20 @@ def main():
 
     if args.list:
         from pprint import pprint
-        pprint(IFACES)
+        if WINDOWS:
+            pprint(IFACES)
+        else:
+            import netifaces
+            ifaces = netifaces.interfaces()
+            fmt = "{:<7} {}"
+            print(fmt.format("NAME", "IP ADDRESS"))
+            for iface in ifaces:
+                ifaddrs = netifaces.ifaddresses(iface)
+                for idx in ifaddrs:
+                    for ifaddr in ifaddrs[idx]:
+                        if 0 < len(ifaddr.get("netmask", "")) < 16:
+                            print(fmt.format(iface, ifaddr.get("addr")))
+                            continue
         return
 
     rq = Queue()
